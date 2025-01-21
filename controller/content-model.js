@@ -53,6 +53,29 @@ export const getModelbyUID = async (req, res) => {
     }
 }
 
+export const getModelCount = async (req, res) => {
+    try {
+        const client = new MongoClient(process.env.MONGODB_URI);
+        const db = client.db('CMS');
+        const collection = db.collection(`Schema`);
+        const result = await collection.countDocuments({})
+        client.close();
+
+        if (result) {
+            res.status(200).send({
+                count: result
+            })
+        }
+        else throw 'error'
+        
+    } catch (error) {
+        console.log("🚀 ~ getModelCount ~ error:", error)
+        res.status(404).send({
+            message: 'Unable to fetch Model Count'
+        })
+    }
+}
+
 
 export const createContentModelByID = async (req, res) => {
     try {

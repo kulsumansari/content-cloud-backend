@@ -1,0 +1,677 @@
+/* eslint-disable no-loop-func */
+/* eslint-disable no-shadow */
+/* eslint-disable no-unused-expressions */
+import React from 'react'
+import PropTypes from 'prop-types'
+import get from 'lodash/get'
+import Head from 'next/head'
+
+import content from '../src/services/content'
+import t from '../src/utils/tools'
+import * as utility from '../src/services/utility'
+
+import FooterCTA from '../src/components/FooterCTA'
+import GalleryThumbnail from '../src/components/GalleryThumbnail'
+import GalleryThumbnailSidebar from '../src/components/GalleryThumbnailSidebar'
+import GalleryThumbnailCategory from '../src/components/GalleryThumbnailCategory'
+import GalleryHeroGrid from '../src/components/GalleryHeroGrid'
+import Layout from '../src/components/common/Layout'
+import SignUpCTA from '../src/components/SignUpCTA'
+
+const _ = require('lodash')
+
+const { generateKey, getImageUrl } = utility
+
+const Blog = ({ entry, translateCon, translateConRedesign, heroFeatured, heroPost, blogTagResult, blogUids, url }) => {
+  console.log("🚀 ~ Blog ~ blogTagResult:", blogTagResult)
+  const locale = url && url.query && url.query.locale ? `/${url.query.locale}` : ''
+  const tagContent = []
+  translateConRedesign = translateConRedesign && translateConRedesign[0]
+  blogTagResult && blogTagResult.map((dt) => {
+    const b1 = dt.blog?.length ? dt.blog[0] : []
+    const b2 = dt.blogv2 && dt.blogv2?.length ? dt.blogv2[0] : []
+    tagContent.push({
+      tagType: dt.tagType,
+      tagKeyword: dt.tagKeyword,
+      blogs: _.orderBy(b1.concat(b2), 'publish_date', 'desc')
+    })
+  })
+
+
+  const blogUid = _.cloneDeep(blogUids)
+
+  const renderBlocks = (block, index) => {
+    let splitFeatured = []
+    let splitPost = []
+    let listFeatured = []
+    let listPost = []
+    let blogTag = []
+    const columns = get(block, 'column_listing.column_listing_reference[0].columns')
+    const blogSidebarArr = []
+    const columnListingArr = []
+
+    switch (Object.keys(block)[0]) {
+    case 'hero_grid':
+      return (
+        (heroFeatured && heroFeatured.title_l10n) || (heroPost && heroPost?.length)
+          ? (
+            <GalleryHeroGrid
+              blog
+              heroFeatured={heroFeatured}
+              heroGrid={block.hero_grid}
+              heroPost={heroPost}
+              hideLanguageToggleSwitch={entry.hide_language_toggle_switch}
+              key={generateKey('gallery_hero_grid', index)}
+              translateCon={translateCon}
+              translateConRedesign={translateConRedesign}
+              url={url}
+            />
+          ) : ''
+      )
+
+    case 'featured_split_listing': {
+      const useCase = get(block.featured_split_listing, 'featured_split_listing_reference[0].tags_use_case[0].keyword')
+      const elasticStack = get(block.featured_split_listing, 'featured_split_listing_reference[0].tags_elastic_elk_stack[0].keyword')
+      const blogType = get(block.featured_split_listing, 'featured_split_listing_reference[0].tags_blog_type[0].keyword')
+      const category = get(block.featured_split_listing, 'featured_split_listing_reference[0].category[0].key')
+      let foundMultipleUsecase = false
+      let usecase2 = ''
+      const arr1 = []
+      if (useCase) {
+        blogTag = useCase
+        if (block.featured_split_listing.featured_split_listing_reference[0]?.tags_use_case?.length > 1) {
+          foundMultipleUsecase = true
+          usecase2 = get(block.featured_split_listing, 'featured_split_listing_reference[0].tags_use_case[1].keyword')
+        }
+      } else if (elasticStack) {
+        blogTag = elasticStack
+      } else if (blogType) {
+        blogTag = blogType
+      } else if (category) {
+        blogTag = category
+      }
+      let featurePostNotFound = true
+      let postNotFound = true
+      if (get(block.featured_split_listing, 'featured_split_listing_reference[0].featured_post[0]')) {
+        splitFeatured = get(block.featured_split_listing, 'featured_split_listing_reference[0].featured_post[0]')
+        blogUid.push(block.featured_split_listing.featured_split_listing_reference[0].featured_post[0].uid)
+        featurePostNotFound = false
+      }
+      if (get(block.featured_split_listing, 'featured_split_listing_reference[0].posts[0]')) {
+        splitPost = block.featured_split_listing.featured_split_listing_reference[0].posts
+        splitPost.forEach((blg) => {
+          blogUid.push(blg.uid)
+        })
+        postNotFound = false
+      }
+      if (featurePostNotFound || postNotFound) {
+        tagContent.forEach((tag) => {
+          if (tag.tagKeyword === blogTag) {
+            let count = 0
+            tag.blogs.forEach((blg) => {
+              if (featurePostNotFound) {
+                if (!blogUid.some((id) => id === blg.uid)) {
+                  blogUid.push(blg.uid)
+                  splitFeatured = blg
+                  featurePostNotFound = false
+                }
+              }
+              if (postNotFound) {
+                if (foundMultipleUsecase) {
+                  if (tag.tagKeyword === blogTag || tag.tagKeyword === usecase2) {
+                    arr1.push(tag.blogs)
+                  }
+                } else if (tag.tagKeyword === blogTag) {
+                  if (!blogUid.some((id) => id === blg.uid)) {
+                    blogUid.push(blg.uid)
+                    splitPost.push(blg)
+                    count += 1
+                    if (count === 3) {
+                      postNotFound = false
+                    }
+                  }
+                }
+              }
+            })
+          }
+        })
+      }
+      if (foundMultipleUsecase) {
+        const arr2 = _.uniqBy(arr1.flat(), 'uid')
+        for (let i = 0; i < arr2?.length; i++) {
+          if (!blogUid.some((id) => id === arr2[i].uid)) {
+            blogUid.push(arr2[i].uid)
+            splitPost.push(arr2[i])
+          }
+          if (splitPost?.length === 3) break
+        }
+      }
+
+      return (
+        (splitFeatured && splitFeatured.title_l10n) || (splitPost && splitPost?.length)
+          ? (
+            <>
+              <Layout size='layout-06' />
+              <GalleryThumbnail
+                type='2x2'
+                block={block}
+                splitFeatured={splitFeatured}
+                splitPost={splitPost}
+                translateCon={translateCon}
+                url={url}
+              />
+            </>
+          ) : ''
+      )
+    }
+    case 'listing_with_sidebar': {
+      const sideBarTag = get(block.listing_with_sidebar, 'listing_with_sidebar_reference[0].sidebar.category[0].key')
+      const useCase = get(block.listing_with_sidebar, 'listing_with_sidebar_reference[0].tags_use_case[0].keyword')
+      const elasticStack = get(block.listing_with_sidebar, 'listing_with_sidebar_reference[0].tags_elastic_elk_stack[0].keyword')
+      const blogType = get(block.listing_with_sidebar, 'listing_with_sidebar_reference[0].category[0].key')
+      if (useCase) {
+        blogTag = useCase
+      } else if (elasticStack) {
+        blogTag = elasticStack
+      } else if (blogType) {
+        blogTag = blogType
+      }
+      let featurePostNotFound = true
+      let postNotFound = true
+
+      if (get(block.listing_with_sidebar, 'listing_with_sidebar_reference[0].top_post[0]')) {
+        listFeatured = get(block.listing_with_sidebar, 'listing_with_sidebar_reference[0].top_post[0]')
+        blogUid.push(block.listing_with_sidebar.listing_with_sidebar_reference[0].top_post[0].uid)
+        featurePostNotFound = false
+      }
+      if (get(block.listing_with_sidebar, 'listing_with_sidebar_reference[0].posts[0]')) {
+        listPost = block.listing_with_sidebar.listing_with_sidebar_reference[0].posts
+        listPost.forEach((blg) => {
+          blogUid.push(blg.uid)
+        })
+        postNotFound = false
+      }
+      if (featurePostNotFound || postNotFound) {
+        tagContent.forEach((tag) => {
+          if (tag.tagKeyword === blogTag) {
+            let count = 0
+            tag.blogs.forEach((blg) => {
+              if (featurePostNotFound) {
+                if (!blogUid.some((id) => id === blg.uid)) {
+                  blogUid.push(blg.uid)
+                  listFeatured = blg
+                  featurePostNotFound = false
+                }
+              }
+              if (postNotFound) {
+                if (!blogUid.some((id) => id === blg.uid)) {
+                  blogUid.push(blg.uid)
+                  listPost.push(blg)
+                  count += 1
+                  if (count === 2) {
+                    postNotFound = false
+                  }
+                }
+              }
+            })
+          }
+        })
+      }
+      tagContent.forEach((tag) => {
+        if (tag.tagKeyword === sideBarTag) {
+          let indi = 0
+          let insert = true
+          tag.blogs.forEach((blg) => {
+            if (insert) {
+              if (!blogUid.some((id) => id === blg.uid)) {
+                blogUid.push(blg.uid)
+                blogSidebarArr.push(blg)
+                indi += 1
+                if (indi === 5) {
+                  insert = false
+                }
+              }
+            }
+          })
+        }
+      })
+      return (
+        (listFeatured && listFeatured.title_l10n) || (listPost && listPost?.length)
+          ? (
+            <>
+              <Layout size='layout-06' />
+              <GalleryThumbnailSidebar
+                block={block}
+                listFeatured={listFeatured}
+                listPost={listPost}
+                url={url}
+                translateCon={translateCon}
+                sidebarArr={blogSidebarArr}
+              />
+            </>
+          ) : ''
+      )
+    }
+    case 'column_listing': {
+      if (columns && columns?.length) {
+        for (let j = 0; j < columns?.length; j++) {
+          const useCase = get(block.column_listing, `column_listing_reference[0].columns[${j}].tags_use_case[0].keyword`)
+          const elasticStack = get(block.column_listing, `column_listing_reference[0].columns[${j}].tags_elastic_elk_stack[0].keyword`)
+          const blogType = get(block.column_listing, `column_listing_reference[0].columns[${j}].tags_blog_type[0].keyword`)
+          const blogCategory = get(block.column_listing, `column_listing_reference[0].columns[${j}].category[0].key`)
+
+          if (useCase) {
+            blogTag = useCase
+          } else if (elasticStack) {
+            blogTag = elasticStack
+          } else if (blogType) {
+            blogTag = blogType
+          } else if (blogCategory) {
+            blogTag = blogCategory
+          }
+          const miniBlogArr = []
+          if (get(block.column_listing, `column_listing_reference[0].columns[${j}].top_post[0]`)) {
+            blogUid.push(block.column_listing.column_listing_reference[0].columns[j].top_post[0].uid)
+            columnListingArr.push({
+              ...block.column_listing.column_listing_reference[0].columns[j].top_post[0],
+              icon: get(block.column_listing, `column_listing_reference[0].columns[${j}].icon`),
+              topicHeading: get(block.column_listing, `column_listing_reference[0].columns[${j}].topic_heading_l10n`),
+              blogKey: blogTag
+            })
+          } else {
+            tagContent.forEach((tag) => {
+              let indi = 0
+              let mini = 0
+              let insert = true
+              let addMiniList = !get(block.column_listing, 'column_listing_reference[0].first_row_only')
+              if (tag.tagKeyword === blogTag) {
+                tag.blogs.forEach((blg) => {
+                  if (insert) {
+                    if (!blogUid.some((id) => id === blg.uid)) {
+                      blogUid.push(blg.uid)
+                      columnListingArr.push({
+                        ...blg,
+                        icon: get(block.column_listing, `column_listing_reference[0].columns[${j}].icon`),
+                        topicHeading: get(block.column_listing, `column_listing_reference[0].columns[${j}].topic_heading_l10n`),
+                        blogKey: blogTag
+                      })
+                      indi += 1
+                      if (indi === 1) {
+                        insert = false
+                      }
+                    }
+                  }
+                  if (addMiniList) {
+                    if (!blogUid.some((id) => id === blg.uid)) {
+                      blogUid.push(blg.uid)
+                      miniBlogArr.push(blg)
+                      mini += 1
+                      if (mini === 2) {
+                        addMiniList = false
+                      }
+                    }
+                  }
+                })
+              }
+            })
+          }
+          columnListingArr[j] ? columnListingArr[j].columnMiniList = miniBlogArr : ''
+        }
+      }
+      return (
+        columnListingArr && columnListingArr?.length
+          ? (
+            <GalleryThumbnailCategory
+              block={block}
+              content={columnListingArr}
+              translateCon={translateCon}
+              url={url}
+            />
+          ) : ''
+      )
+    }
+    case 'sign_up_cta':
+      return (
+        <>
+          <Layout size='layout-06' />
+          <SignUpCTA
+            data={get(block, 'sign_up_cta.reference[0]')}
+            locale={locale}
+          />
+        </>
+      )
+
+    default:
+      return null
+    }
+  }
+
+  return (
+    <div className='blog-overview'>
+      <Head>
+        {entry && entry.seo && entry.seo.seo_image && entry.seo.seo_image.url
+          ? <meta name='result-thumbnail-image' content={getImageUrl(entry.seo.seo_image.url)} />
+          : <meta name='result-thumbnail-image' content={getImageUrl('https://images.contentstack.io/v3/assets/bltfc33d9945cd3f9c5/blt89aac2319a9423ce/5ec4503bc846021917ecade5/the-elasticsearch-experience-elasticon.jpg')} />}
+        {entry && entry.seo && entry.seo.seo_title_l10n
+          ? <meta name='twitter:title' content={entry.seo.seo_title_l10n.replace('&amp;amp;', '&amp;')} />
+          : <meta name='twitter:title' content={entry.title.replace('&amp;amp;', '&amp;')} />}
+        {entry && entry.seo && entry.seo.seo_description_l10n
+          ? <meta name='twitter:description' content={entry.seo.seo_description_l10n} />
+          : <meta name='twitter:description' content={entry.title.replace('&amp;amp;', '&amp;')} />}
+        {entry && entry.seo && entry.seo.seo_keywords_l10n
+          ? <meta name='twitter:keyword' content={entry.seo.seo_keywords_l10n} />
+          : ''}
+      </Head>
+      <div className='container'>
+        {entry.modular_blocks && entry.modular_blocks?.length
+          ? entry.modular_blocks.map((block, indx) => renderBlocks(block, indx)) : ''}
+      </div>
+      <Layout size='layout-07' />
+      {get(entry, 'footer_cta_reference[0]')
+        ? (
+          <FooterCTA
+            footerCTA={entry.footer_cta_reference[0]}
+            dark_mode={t.getTheme(entry.footer_cta_reference[0].dark_mode)}
+            locale={locale}
+          />
+        )
+        : ''}
+
+      <style jsx global>
+        {`
+          .blog-overview {
+            h3, h6 {
+              display: -webkit-box;
+              -webkit-line-clamp: 4;
+              -webkit-box-orient: vertical;
+              overflow: hidden;
+              padding-bottom:0;
+              margin-bottom:16px;
+            }
+            .toggle-switch {
+              margin-bottom: 16px;
+
+              span {
+                font-size: 14px;
+                line-height: 24px;
+              }
+
+              .form-switch {
+                padding-left: 0;
+                display: flex;
+                align-items: center;
+
+                input {
+                  appearance: none;
+                  background-color: var(--color-dark-gray);
+                  width: 50px;
+                  height: 30px;
+                  padding: 5px;
+                  border-radius: 20px;
+                  cursor: pointer;
+                  margin-left: 16px;
+                  margin-top: 0;
+                  position: unset;
+                  transition: all .4s ease;
+
+                  &::before {
+                    content: '';
+                    display: inline-block;
+                    width: 20px;
+                    height: 20px;
+                    border-radius: 50%;
+                    background-color: #fff;
+                    box-shadow: 0 2px 6px 0 rgba(83, 89, 102, 0.25), 0 10px 20px 0 rgba(83, 89, 102, 0.10);
+                    transition: all .4s ease;
+                  }
+
+                  &:checked {
+                    background-color: var(--color-elastic-blue);
+                    text-align: right;
+                  }
+
+                  &.active {
+                    background-color: var(--color-elastic-blue);
+                  }
+                }
+              }
+            }
+            .content-gallery {
+              padding: 0;
+            }
+            
+            .listing-wrapper {
+              p {
+                margin-bottom: 16px;
+              }
+            }
+            
+            .editorial-molecule {
+              &:hover {
+                .title {
+                  h6, h3 {
+                    text-decoration: underline;
+                  }
+                }
+                p {
+                  opacity: 0.8;
+                }
+              }
+            }
+
+            .editorial-molecule {
+              .molecule {
+                .thumbnail img {
+                  border: 1px solid var(--color-gray);
+                }
+              } 
+            } 
+          }
+
+          @media screen and (max-width: 768px) {
+            .blog-overview  {
+              .ghost-card.card {
+                .vid-url {
+                  max-height: 100%;
+                }
+              }
+            }
+          }
+        `}
+      </style>
+    </div>
+  )
+}
+
+export async function getServerSideProps (ctx) {
+  const blogOverview = {
+    query: {
+      referenceFieldUids: ['featured_blog', 'modular_blocks.listing_with_sidebar.listing_with_sidebar_reference',
+        'modular_blocks.hero_grid.hero_grid_reference', 'modular_blocks.column_listing.column_listing_reference',
+        'modular_blocks.hero_grid.hero_grid_reference.featured_post', 'modular_blocks.hero_grid.hero_grid_reference.latest_blog_posts.post', 'modular_blocks.hero_grid.hero_grid_reference.latest_blog_posts.post.author',
+        'modular_blocks.hero_grid.hero_grid_reference.posts', 'modular_blocks.hero_grid.hero_grid_reference.latest_blog_posts.featured_post',
+        'modular_blocks.hero_grid.hero_grid_reference.featured_post.author', 'modular_blocks.hero_grid.hero_grid_reference.latest_blog_posts.featured_post.author',
+        'modular_blocks.hero_grid.hero_grid_reference.posts.author',
+        'modular_blocks.featured_split_listing.featured_split_listing_reference',
+        'modular_blocks.featured_split_listing.featured_split_listing_reference.featured_post',
+        'modular_blocks.featured_split_listing.featured_split_listing_reference.posts',
+        'modular_blocks.featured_split_listing.featured_split_listing_reference.featured_post.author',
+        'modular_blocks.featured_split_listing.featured_split_listing_reference.posts.author',
+        'modular_blocks.column_listing.column_listing_reference.columns.tags_use_case',
+        'modular_blocks.listing_with_sidebar.listing_with_sidebar_reference.category',
+        'modular_blocks.listing_with_sidebar.listing_with_sidebar_reference.sidebar.category',
+        'modular_blocks.featured_split_listing.featured_split_listing_reference.tags_blog_type',
+        'modular_blocks.column_listing.column_listing_reference.columns.top_post',
+        'modular_blocks.column_listing.column_listing_reference.columns.top_post.author',
+        'modular_blocks.featured_split_listing.featured_split_listing_reference.tags_use_case',
+        'modular_blocks.featured_split_listing.featured_split_listing_reference.category',
+        'modular_blocks.featured_split_listing.featured_split_listing_reference.tags_elastic_elk_stack',
+        'modular_blocks.listing_with_sidebar.listing_with_sidebar_reference.tags_use_case', 'footer_cta_reference',
+        'modular_blocks.column_listing.column_listing_reference.columns.tags_blog_type',
+        'modular_blocks.column_listing.column_listing_reference.columns.category',
+        'modular_blocks.column_listing.column_listing_reference.columns.tags_elastic_elk_stack',
+        'modular_blocks.listing_with_sidebar.listing_with_sidebar_reference.posts',
+        'modular_blocks.listing_with_sidebar.listing_with_sidebar_reference.posts.author',
+        'modular_blocks.listing_with_sidebar.listing_with_sidebar_reference.top_post',
+        'modular_blocks.listing_with_sidebar.listing_with_sidebar_reference.top_post.author',
+        'modular_blocks.sign_up_cta.reference'
+      ],
+      slug: ctx.query.slug,
+      locale: ctx.query.locale
+    }
+  }
+
+  const blogQuery = {
+    query: {
+      referenceFieldUids: ['author', 'category', 'tags_blog_type', 'tags_use_case', 'tags_elastic_elk_stack'],
+      slug: undefined,
+      locale: ctx.query.locale,
+      limit: 100,
+      excludeFallbackCall: true
+    }
+  }
+
+  const entry = await content.getData('/blog_overview', blogOverview)
+  ctx.query.slug = undefined
+  const translateCon = await content.getData('/translate_content', ctx)
+  const translateConRedesign = await content.getData('/translate_content_redesign', ctx)
+
+  const tagArray = []
+
+  const addTags = (element) => {
+    if (element?.tags_use_case?.length) {
+      if (element?.tags_use_case?.length > 1) {
+        tagArray.push({ tagType: 'tags_use_case', tagKeyword: element?.tags_use_case[0]?.keyword, tagUid: element?.tags_use_case[0]?.uid })
+        tagArray.push({ tagType: 'tags_use_case', tagKeyword: element?.tags_use_case[1]?.keyword, tagUid: element?.tags_use_case[1]?.uid })
+      } else {
+        tagArray.push({ tagType: 'tags_use_case', tagKeyword: element?.tags_use_case[0]?.keyword, tagUid: element?.tags_use_case[0]?.uid })
+      }
+    }
+    if (element?.tags_elastic_elk_stack?.length) {
+      tagArray.push({ tagType: 'tags_elastic_stack', tagKeyword: element.tags_elastic_elk_stack[0].keyword, tagUid: element.tags_elastic_elk_stack[0].uid })
+    }
+    if (element?.tags_blog_type?.length) {
+      tagArray.push({ tagType: 'tags_blog_type', tagKeyword: element.tags_blog_type[0].keyword, tagUid: element.tags_blog_type[0].uid })
+    }
+    if (element?.category?.length) {
+      tagArray.push({ tagType: 'category', tagKeyword: element.category[0].key, tagUid: element.category[0].uid })
+    }
+  }
+  let heroFeatured = []
+  let heroPost = []
+  let latestSortedBlogs = []
+  const blogUid = []
+  const addUid = (arr, start, end) => {
+    for (let i = start; i < end; i++) {
+      blogUid.push(arr[i].uid)
+    }
+  }
+
+  const modularBlocks = get(entry[0][0], 'modular_blocks', [])
+  if (modularBlocks?.length) {
+    await Promise.all(
+      modularBlocks.map(async (block) => {
+        if (Object.keys(block)[0] === 'hero_grid') {
+          let includeIndex0 = true
+          const featuredPost = get(block.hero_grid, 'hero_grid_reference[0].featured_post')
+          const post = get(block.hero_grid, 'hero_grid_reference[0].posts')
+          const fetchLatest = !(featuredPost?.length && post?.length)
+          if (fetchLatest) {
+            const latestBlogsV2 = await content.getData('/blog_v2', blogQuery)
+            const latestBlogs = await content.getData('/blog', blogQuery)
+            const latestBlogsArray = latestBlogsV2[0].concat(latestBlogs[0])
+            const sortedBlogs = _.orderBy(latestBlogsArray, 'publish_date', 'desc')
+            latestSortedBlogs = sortedBlogs.filter((blogs) => get(blogs, 'tags_blog_type[0].keyword') !== 'release' && get(blogs, 'category[0].key') !== 'releases')
+          }
+          if (featuredPost?.length) {
+            heroFeatured = get(block.hero_grid, 'hero_grid_reference[0].featured_post[0]')
+            blogUid.push(block.hero_grid.hero_grid_reference[0].featured_post[0].uid)
+          } else if (get(block.hero_grid, 'hero_grid_reference[0].latest_blog_posts.featured_post[0]')) {
+            heroFeatured = get(block.hero_grid, 'hero_grid_reference[0].latest_blog_posts.featured_post[0]')
+            blogUid.push(block.hero_grid.hero_grid_reference[0].latest_blog_posts.featured_post[0].uid)
+          } else {
+            includeIndex0 = false
+            heroFeatured = latestSortedBlogs && latestSortedBlogs[0]
+            blogUid.push(latestSortedBlogs[0].uid)
+          }
+          if (post?.length) {
+            heroPost = get(block.hero_grid, 'hero_grid_reference[0].posts')
+            addUid(post, 0, post?.length)
+          } else if (get(block.hero_grid, 'hero_grid_reference[0].latest_blog_posts.post[0]')) {
+            heroPost = includeIndex0 ? latestSortedBlogs && latestSortedBlogs.slice(0, 4) : latestSortedBlogs && latestSortedBlogs.slice(1, 4)
+            addUid(latestSortedBlogs, 0, 4)
+            heroPost.unshift(get(block.hero_grid, 'hero_grid_reference[0].latest_blog_posts.post[0]'))
+            blogUid.push(block.hero_grid.hero_grid_reference[0].latest_blog_posts.post[0].uid)
+          } else {
+            heroPost = includeIndex0 ? latestSortedBlogs && latestSortedBlogs.slice(0, 4) : latestSortedBlogs && latestSortedBlogs.slice(1, 4)
+            addUid(latestSortedBlogs, 0, 4)
+          }
+        }
+        if (Object.keys(block)[0] === 'column_listing') {
+          const columns = get(block, 'column_listing.column_listing_reference[0].columns')
+          columns?.length && columns.forEach((ele) => {
+            addTags(ele)
+          })
+        }
+        if (Object.keys(block)[0] === 'featured_split_listing') {
+          const featuredSplitListing = get(block, 'featured_split_listing.featured_split_listing_reference[0]')
+          addTags(featuredSplitListing)
+        }
+        if (Object.keys(block)[0] === 'listing_with_sidebar') {
+          const listingWithSidebar = get(block, 'listing_with_sidebar.listing_with_sidebar_reference[0]')
+          addTags(listingWithSidebar)
+          const sidebar = get(block, 'listing_with_sidebar.listing_with_sidebar_reference[0].sidebar')
+          addTags(sidebar)
+        }
+      })
+    )
+  }
+
+  const uniqTagArray = _.uniqBy(tagArray, 'tagUid')
+
+  const unresolved = uniqTagArray.map(async (ele) => {
+    const blogTagQuery = {
+      query: {
+        referenceFieldUids: ['author', 'category', 'tags_blog_type', 'tags_use_case', 'tags_elastic_elk_stack'],
+        slug: undefined,
+        locale: ctx.query.locale,
+        callee: 'getByReferenceSearch',
+        key: ele.tagType,
+        val: {
+          searchField: 'uid',
+          searchValue: [ele.tagUid]
+        },
+        orderBy: 'publish_date',
+        limit: 100,
+        excludeFallbackCall: true
+      }
+    }
+    return ({ tagType: ele.tagType, tagKeyword: ele.tagKeyword, blog: await content.getData('/blog', blogTagQuery), blogv2: await content.getData('/blog_v2', blogTagQuery) })
+  })
+
+  const blogTagResult = await Promise.all(unresolved)
+  return {
+    props: {
+      entry: entry[0][0],
+      translateCon: translateCon[0][0],
+      translateConRedesign,
+      heroFeatured,
+      heroPost,
+      blogTagResult,
+      blogUids: blogUid
+    }
+  }
+}
+
+Blog.propTypes = {
+  blogTagResult: PropTypes.array,
+  blogUids: PropTypes.array,
+  entry: PropTypes.object,
+  heroFeatured: PropTypes.object,
+  heroPost: PropTypes.array,
+  translateCon: PropTypes.object,
+  translateConRedesign: PropTypes.oneOfType([PropTypes.array, PropTypes.string]),
+  url: PropTypes.object
+}
+
+export default Blog
