@@ -4,8 +4,9 @@ config()
 
 export const getAllModels = async (req, res) => {
     try {
+        const {workspace_uid} = req.query
         const client = new MongoClient(process.env.MONGODB_URI);
-        const db = client.db('CMS');
+        const db = client.db(workspace_uid);
         const collection = db.collection('Schema');
         const result = await collection.find({}).toArray()
         // console.log("🚀 ~ getAllModels ~ result:", result)
@@ -30,9 +31,10 @@ export const getAllModels = async (req, res) => {
 
 export const getModelbyUID = async (req, res) => {
     try {
+        const {workspace_uid} = req.query
         const modelUid = req.params.uid
         const client = new MongoClient(process.env.MONGODB_URI);
-        const db = client.db('CMS');
+        const db = client.db(workspace_uid);
         const collection = db.collection('Schema');
         const result = await collection.findOne({schema_uid: modelUid})
         // console.log("🚀 ~ getModelbyUID ~ result:", result?.schema_uid === modelUid)
@@ -55,8 +57,9 @@ export const getModelbyUID = async (req, res) => {
 
 export const getModelCount = async (req, res) => {
     try {
+        const {workspace_uid} = req.query
         const client = new MongoClient(process.env.MONGODB_URI);
-        const db = client.db('CMS');
+        const db = client.db(workspace_uid);
         const collection = db.collection(`Schema`);
         const result = await collection.countDocuments({})
         client.close();
@@ -79,12 +82,14 @@ export const getModelCount = async (req, res) => {
 
 export const createContentModelByID = async (req, res) => {
     try {
+        const {workspace_uid} = req.query
         const client = new MongoClient(process.env.MONGODB_URI);
-        const db = client.db('CMS');
+        const db = client.db(workspace_uid);
         const collection = db.collection('Schema');
         const result = await collection.insertOne({
             ...req.body,
-            createdAt: new Date().toLocaleString()
+            createdAt: new Date().toLocaleString(),
+            updatedAt: new Date().toLocaleString()
         });
         console.log("🚀 ~ createContentModelByID ~ result:", result)
         client.close();
@@ -109,9 +114,10 @@ export const createContentModelByID = async (req, res) => {
 // upsert route to update the embeddings in mongodb database for given uid
 export const updateContentModelByID = async(req, res) => {
     try {
+        const {workspace_uid} = req.query
         const modelUid = req.params.uid
         const client = new MongoClient(process.env.MONGODB_URI);
-        const db = client.db('CMS');
+        const db = client.db(workspace_uid);
         const collection = db.collection('Schema');
         const result = await collection.updateOne({schema_uid: modelUid }, {$set:{
                 ...req.body,
@@ -123,7 +129,7 @@ export const updateContentModelByID = async(req, res) => {
 
         if (result.acknowledged) {
             res.status(200).send({
-                message: 'content model updatedS!'
+                message: 'content model updated!'
             })
         }
         else throw 'error'
@@ -140,9 +146,10 @@ export const updateContentModelByID = async(req, res) => {
 
 export const deleteModelbyUID = async (req, res) => {
     try {
+        const {workspace_uid} = req.query
         const modelUid = req.params.uid
         const client = new MongoClient(process.env.MONGODB_URI);
-        const db = client.db('CMS');
+        const db = client.db(workspace_uid);
         const collection = db.collection('Schema');
         const result = await collection.deleteOne({schema_uid: modelUid})
         // console.log("🚀 ~ deleteModelbyUID ~ result:", result)

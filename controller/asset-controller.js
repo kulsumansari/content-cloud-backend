@@ -7,10 +7,11 @@ const bucketUrl = 'http://localhost:5000/assets-io/'
 
 export const getAllAssets = async (req, res) => {
     try {
+        const {workspace_uid} = req.query
         const client = new MongoClient(process.env.MONGODB_URI);
-        const db = client.db('CMS');
+        const db = client.db(workspace_uid);
         const collection = db.collection(`assets`);
-        const result = await collection.find({}).project({_id : 0}).toArray()
+        const result = await collection.find({}).project({_id : 0}).sort({createdAt: -1}).toArray()
         client.close();
 
         if (result) {
@@ -30,12 +31,11 @@ export const getAllAssets = async (req, res) => {
 
 export const getAssetsCount = async (req, res) => {
     try {
+        const {workspace_uid} = req.query
         const client = new MongoClient(process.env.MONGODB_URI);
-        const db = client.db('CMS');
+        const db = client.db(workspace_uid);
         const collection = db.collection(`assets`);
-        console.log('------ countj ---------')
         const result = await collection.countDocuments({})
-        console.log("🚀 ~ getAssetsCount ~ result:", result)
         client.close();
 
         if (result) {
@@ -55,9 +55,10 @@ export const getAssetsCount = async (req, res) => {
 
 export const getAssetByUID = async (req, res) => {
     try {
+        const {workspace_uid} = req.query
         const assetUid = req.params.assetUid
         const client = new MongoClient(process.env.MONGODB_URI);
-        const db = client.db('CMS');
+        const db = client.db(workspace_uid);
         const collection = db.collection(`assets`);
         const result = await collection.find({asset_uid: assetUid}).project({_id : 0}).toArray()
         client.close();
@@ -79,11 +80,11 @@ export const getAssetByUID = async (req, res) => {
 
 export const createAsset = async(req, res) => {
     try {
-
+        const {workspace_uid} = req.query
         const assetUid = req.params.assetUid
         // const entryUid = req.params.entryUid
         const client = new MongoClient(process.env.MONGODB_URI);
-        const db = client.db('CMS');
+        const db = client.db(workspace_uid);
         const collection = db.collection('assets');
 
         const assetObj = await collection.find({asset_uid: assetUid}).toArray()
@@ -121,11 +122,44 @@ export const createAsset = async(req, res) => {
     }
 }
 
+export const updateAssetByUID = async(req, res) => {
+    try {
+        const {workspace_uid} = req.query
+        const assetUid = req.params.uid
+        const client = new MongoClient(process.env.MONGODB_URI);
+        const db = client.db(workspace_uid);
+        const collection = db.collection('assets');
+        const result = await collection.updateOne({asset_uid: assetUid }, {$set:{
+                ...req.body,
+                updatedAt: new Date().toLocaleString()
+            }},
+            {upsert:false}
+        );
+        client.close();
+
+        if (result.acknowledged) {
+            res.status(200).send({
+                message: 'content model updatedS!'
+            })
+        }
+        else throw 'error'
+        
+    } catch (error) {
+        console.log("🚀 ~ updateAssetByUID ~ error:", error)
+        let errMsg = 'Internal Server Error'
+        if (error?.errorResponse?.code === 11000) errMsg = 'Asset UID is not unique!'
+        res.status(500).send({
+            message: errMsg
+        })
+    }
+}
+
 export const deleteAssetbyUID = async (req, res) => {
     try {
+        const {workspace_uid} = req.query
         const assetUid = req.params.assetUid
         const client = new MongoClient(process.env.MONGODB_URI);
-        const db = client.db('CMS');
+        const db = client.db(workspace_uid);
         const collection = db.collection('assets');
         const result = await collection.deleteOne({asset_uid: assetUid})
         // console.log("🚀 ~ deleteModelbyUID ~ result:", result)
