@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { getConfigDetails, upsertConfigDetails } from '../controller/config-controller.js';
+import { getConfigDetails, upsertConfigDetails } from '../../controller/config-controller.js';
 
 const router = Router();
 

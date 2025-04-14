@@ -2,16 +2,15 @@
 import express from 'express';
 import { config } from 'dotenv';
 import cors from 'cors';
-import { MongoClient } from "mongodb"
 
-
-import contentRouter from './routes/content-routes.js'
-import AssetRouter from './routes/asset-routes.js'
-import configRouter from './routes/config-routes.js'
-import userRoutes from './routes/user-routes.js'
-import workspaceRoutes from './routes/workspace-routes.js'
+import contentRouter from './routes/application-routes/content-routes.js'
+import AssetRouter from './routes/application-routes/asset-routes.js'
+import configRouter from './routes/application-routes/config-routes.js'
+import userRoutes from './routes/application-routes/user-routes.js'
+import workspaceRoutes from './routes/application-routes/workspace-routes.js'
 
 import { getAllEntries } from './controller/entry-controller.js';
+import DeliveryRouter from './routes/delivery-api.js';
 
 config();
 
@@ -20,13 +19,17 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({extended:false}));
 
+// application-routes
 app.use("/content-model" , contentRouter)
 app.use("/assets" , AssetRouter)
 app.use('/configuration', configRouter);
 app.use('/users', userRoutes)
 app.use('/workspace', workspaceRoutes)
-
 app.get("/entries" , getAllEntries)
+
+
+// delivery api routes
+app.use('/delivery-api', DeliveryRouter) 
 
 
 // Serve the images folder as static files

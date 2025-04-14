@@ -17,6 +17,9 @@ export const getAllWorkspaces = async(req, res)=> {
 export const createWorkspace = async(req, res)=> {
     try {
       const {workspace_uid} = req.body
+      if (!workspace_uid || workspace_uid === null) {
+        res.status(404).json({})
+      }
       const client = new MongoClient(process.env.MONGODB_URI);
       if (workspace_uid) {
         const db = client.db(workspace_uid);
@@ -61,22 +64,22 @@ export const deleteWorkspace = async(req, res)=> {
           // update user's DB 
           const userDB = client.db('Users');
           const userColl = userDB.collection('user-collection');
-          console.log(config)
-          const userDetails = await userColl.find({user_id: {$in: config?.[0]?.users}}).project({_id : 0}).toArray()
 
-          // console.log("🚀 ~ deleteWorkspace ~ userDetails:", userDetails)
-          userDetails?.forEach(async(user) => {
-            let newWorkspaces = []
-            if (user?.workspaces?.includes(workspace_uid)) {
-                newWorkspaces = user?.workspaces.filter((sp) => sp !== workspace_uid)
-            }
-            const userUpdate = await userColl.updateOne({user_id: user.user_id }, {$set:{
-                  ...user,
-                  workspaces: newWorkspaces
-              }},
-              {upsert:true}
-            );
-          })
+          if (config?.[0]?.users?.length > 0) {
+            const userDetails = await userColl.find({user_id: {$in: config?.[0]?.users}}).project({_id : 0}).toArray()
+            userDetails?.forEach(async(user) => {
+              let newWorkspaces = []
+              if (user?.workspaces?.includes(workspace_uid)) {
+                  newWorkspaces = user?.workspaces.filter((sp) => sp !== workspace_uid)
+              }
+              const userUpdate = await userColl.updateOne({user_id: user.user_id }, {$set:{
+                    ...user,
+                    workspaces: newWorkspaces
+                }},
+                {upsert:true}
+              );
+            })
+          }
         }
         res.status(200).json(result)
       } 

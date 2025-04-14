@@ -9,7 +9,6 @@ export const getAllModels = async (req, res) => {
         const db = client.db(workspace_uid);
         const collection = db.collection('Schema');
         const result = await collection.find({}).toArray()
-        // console.log("🚀 ~ getAllModels ~ result:", result)
         client.close();
 
         if (result) {
@@ -31,6 +30,8 @@ export const getAllModels = async (req, res) => {
 
 export const getModelbyUID = async (req, res) => {
     try {
+        console.log(req.query, req.params)
+
         const {workspace_uid} = req.query
         const modelUid = req.params.uid
         const client = new MongoClient(process.env.MONGODB_URI);

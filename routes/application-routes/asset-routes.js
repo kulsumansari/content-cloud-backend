@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import multer from 'multer';
-import { createAsset, getAssetByUID, getAllAssets, deleteAssetbyUID, getAssetsCount, updateAssetByUID } from '../controller/asset-controller.js';
+import { createAsset, getAssetByUID, getAllAssets, deleteAssetbyUID, getAssetsCount, updateAssetByUID } from '../../controller/asset-controller.js';
 
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {

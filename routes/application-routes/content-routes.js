@@ -1,6 +1,6 @@
 import { Router } from 'express';
-import { createContentModelByID, deleteModelbyUID, getAllModels, getModelbyUID, updateContentModelByID, getModelCount } from '../controller/content-model.js'
-import { createEntry, deleteEntrybyUID, getAllEntriesByModelUid, getEntryByUID, updateEntryByUID } from '../controller/entry-controller.js'
+import { createContentModelByID, deleteModelbyUID, getAllModels, getModelbyUID, updateContentModelByID, getModelCount } from '../../controller/content-model.js'
+import { createEntry, deleteEntrybyUID, getAllEntriesByModelUid, getEntryByUID, updateEntryByUID } from '../../controller/entry-controller.js'
 
 
 const router = Router();
