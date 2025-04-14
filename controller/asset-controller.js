@@ -22,7 +22,7 @@ export const getAllAssets = async (req, res) => {
         else throw 'error'
         
     } catch (error) {
-        console.log("🚀 ~ getAllAssets ~ error:", error)
+        // console.log("🚀 ~ getAllAssets ~ error:", error)
         res.status(404).send({
             message: 'Unable to fetch Assets'
         })

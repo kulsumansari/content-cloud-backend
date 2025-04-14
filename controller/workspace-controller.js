@@ -21,12 +21,25 @@ export const createWorkspace = async(req, res)=> {
       if (workspace_uid) {
         const db = client.db(workspace_uid);
         const collection = db.collection('configuration');
+        // console.log(req.body)
         const result = await collection.updateOne({workspace_uid: req.body.workspace_uid }, {$set:{
               ...req.body
           }},
           {upsert:true}
         );
-        res.status(200).json(result)
+        if (result.acknowledged) {
+          // console.log('====== acknowledge ========')
+          const db = client.db('Users');
+          const collection = db.collection('user-collection');
+          req?.body?.users?.length > 0  && req.body.users.forEach(async(u_id) => {
+            const res1 = await collection.updateOne({user_id: u_id }, {$push:{ workspaces: workspace_uid}},
+            
+            {upsert:true}
+          )})
+          // client.close();
+          res.status(200).json(result)
+        }
+        
       } else {
         throw 'Workspace Uid is not provided'
       }
@@ -41,14 +54,36 @@ export const deleteWorkspace = async(req, res)=> {
       const client = new MongoClient(process.env.MONGODB_URI);
       if (workspace_uid) {
         const db = client.db(workspace_uid);
+        const config = await db.collection('configuration')?.find({}).project({_id : 0}).toArray()
         // Dropping the database
         const result = await db.dropDatabase();
-        console.log("🚀 ~ deleteWorkspace ~ result:", result)
+        if (result === true) {
+          // update user's DB 
+          const userDB = client.db('Users');
+          const userColl = userDB.collection('user-collection');
+          console.log(config)
+          const userDetails = await userColl.find({user_id: {$in: config?.[0]?.users}}).project({_id : 0}).toArray()
+
+          // console.log("🚀 ~ deleteWorkspace ~ userDetails:", userDetails)
+          userDetails?.forEach(async(user) => {
+            let newWorkspaces = []
+            if (user?.workspaces?.includes(workspace_uid)) {
+                newWorkspaces = user?.workspaces.filter((sp) => sp !== workspace_uid)
+            }
+            const userUpdate = await userColl.updateOne({user_id: user.user_id }, {$set:{
+                  ...user,
+                  workspaces: newWorkspaces
+              }},
+              {upsert:true}
+            );
+          })
+        }
         res.status(200).json(result)
-      } else {
+      } 
+      else {
         throw 'Workspace Uid is not provided'
       }
-    }catch(err){
+    } catch(err){
       console.log("🚀 ~ app.post ~ err:", err)
     }
 }
@@ -58,6 +93,7 @@ export const addUserToWorkspace = async(req, res)=> {
     const { workspace_uid, users } = req.body
     const client = new MongoClient(process.env.MONGODB_URI);
     if (workspace_uid) {
+      // update workspace configuration
       const db = client.db(workspace_uid);
       const collection = db.collection('configuration');
       users?.length > 0 && users.forEach(async(user)=> {
@@ -66,16 +102,17 @@ export const addUserToWorkspace = async(req, res)=> {
         );
       })
 
+      // update user's DB 
       const userDB = client.db('Users');
       const userColl = userDB.collection('user-collection');
       const userDetails = await userColl.find({}).project({_id : 0}).toArray()
 
-      let newWorkspaces
+      let newWorkspaces, existingUsers = []
+
       userDetails?.forEach(async(user) => {
+          existingUsers.push(user.user_id)
           if (users?.includes(user.user_id)) {
               newWorkspaces = user?.workspaces?.length > 0 ? [workspace_uid, ...user.workspaces] : [workspace_uid]
-
-              console.log(user.user_id, newWorkspaces)
               const userUpdate = await userColl.updateOne({user_id: user.user_id }, {$set:{
                       ...user,
                       workspaces: newWorkspaces
@@ -84,10 +121,22 @@ export const addUserToWorkspace = async(req, res)=> {
               );
           }
       })
+
+      const nonExistingUsers = users.filter((u) => !existingUsers.includes(u))
+
+      nonExistingUsers?.length > 0 && nonExistingUsers.forEach(async(neu) => {
+            const res1 = await userColl.updateOne({user_id: neu }, {$set:{
+                workspaces: [workspace_uid]
+            }},
+            {upsert:true}
+        );
+        client.close();
+      })
       
       res.status(200).json({
         message: 'users list updated!'
       })
+
 
     } else {
       throw 'Workspace Uid is not provided'

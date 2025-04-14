@@ -37,19 +37,37 @@ export const upsertUser = async(req, res) => {
             const client = new MongoClient(process.env.MONGODB_URI);
             const db = client.db('Users');
             const collection = db.collection('user-collection');
-            const result = await collection.updateOne({user_id: req.params.user_id }, {$set:{
-                    ...req.body
-                }},
-                {upsert:true}
-            );
-            client.close();
-    
-            if (result.acknowledged) {
-                res.status(200).send({
-                    message: 'User updated!'
+            const result = await collection.find({user_id: req.body.user_id }).project({_id: 0})?.toArray()
+            if (result?.length > 0 ) {
+                if (result[0]?.registered === true) {
+                    res.send(200).send({
+                        message: 'User already registered'
+                    })
+                } else {
+                    const upUser = await collection.updateOne({user_id: req.body.user_id }, {
+                        $set: {
+                            ...req.body,
+                            registered:true
+                        }
+                    })
+                    if (upUser.acknowledged) {
+                        res.status(200).send({
+                            message: 'User updated!'
+                        })
+                    }
+                }
+            } else {
+                const upUser = await collection.insertOne({
+                    ...req.body,
+                    registered: true
                 })
+                if (upUser.acknowledged) {
+                    res.status(200).send({
+                        message: 'New User Registered!'
+                    })
+                }
             }
-            else throw 'error'
+            client.close();
             
         } catch (error) {
             console.log("🚀 ~ upsertUser ~ error:", error)

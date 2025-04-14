@@ -72,7 +72,7 @@ export const getModelCount = async (req, res) => {
         else throw 'error'
         
     } catch (error) {
-        console.log("🚀 ~ getModelCount ~ error:", error)
+        // console.log("🚀 ~ getModelCount ~ error:", error)
         res.status(404).send({
             message: 'Unable to fetch Model Count'
         })
@@ -91,7 +91,7 @@ export const createContentModelByID = async (req, res) => {
             createdAt: new Date().toLocaleString(),
             updatedAt: new Date().toLocaleString()
         });
-        console.log("🚀 ~ createContentModelByID ~ result:", result)
+        // console.log("🚀 ~ createContentModelByID ~ result:", result)
         client.close();
 
         if (result.acknowledged) {
@@ -153,13 +153,25 @@ export const deleteModelbyUID = async (req, res) => {
         const collection = db.collection('Schema');
         const result = await collection.deleteOne({schema_uid: modelUid})
         // console.log("🚀 ~ deleteModelbyUID ~ result:", result)
-        client.close();
 
         if (result?.acknowledged) {
+            const collections = await db.listCollections({}, { nameOnly: true }).toArray();
+
+            const exists = collections.some(col => col.name === modelUid);
+
+            if (exists) {
+                await db.collection(modelUid).drop();
+                console.log(`Collection '${modelUid}' dropped.`);
+            } else {
+                console.log(`Collection '${modelUid}' does not exist.`);
+            }
+
+            client.close();
             res.status(200).send({
                 message: `${modelUid} content-model has been deleted!`
             })
         }
+        
         else throw 'error'
         
     } catch (error) {
