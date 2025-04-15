@@ -30,8 +30,6 @@ export const getAllModels = async (req, res) => {
 
 export const getModelbyUID = async (req, res) => {
     try {
-        console.log(req.query, req.params)
-
         const {workspace_uid} = req.query
         const modelUid = req.params.uid
         const client = new MongoClient(process.env.MONGODB_URI);

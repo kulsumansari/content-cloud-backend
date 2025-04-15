@@ -11,18 +11,29 @@ export const getAllAssets = async (req, res) => {
         const client = new MongoClient(process.env.MONGODB_URI);
         const db = client.db(workspace_uid);
         const collection = db.collection(`assets`);
-        const result = await collection.find({}).project({_id : 0}).sort({createdAt: -1}).toArray()
+        let result = await collection.find({}).project({_id : 0}).sort({createdAt: -1}).toArray()
         client.close();
+
+        if (req.query.filter === 'published') {
+            result = result.filter((resAsset) => resAsset?.published === true)
+            if (result?.length < 1) {
+                res.status(200).send({
+                    entries: [],
+                    message: 'No assets are published!'
+                })
+                return;
+            } 
+        }
 
         if (result) {
             res.status(200).send({
                 assets: result
             })
         }
-        else throw 'error'
+        // else throw 'error'
         
     } catch (error) {
-        // console.log("🚀 ~ getAllAssets ~ error:", error)
+        console.log("🚀 ~ getAllAssets ~ error:", error)
         res.status(404).send({
             message: 'Unable to fetch Assets'
         })
@@ -43,7 +54,7 @@ export const getAssetsCount = async (req, res) => {
                 count: result
             })
         }
-        else throw 'error'
+        // else throw 'error'
         
     } catch (error) {
         console.log("🚀 ~ getAllAssets ~ error:", error)
@@ -60,8 +71,20 @@ export const getAssetByUID = async (req, res) => {
         const client = new MongoClient(process.env.MONGODB_URI);
         const db = client.db(workspace_uid);
         const collection = db.collection(`assets`);
-        const result = await collection.find({asset_uid: assetUid}).project({_id : 0}).toArray()
+        let result = await collection.find({asset_uid: assetUid}).project({_id : 0}).toArray()
+        // console.log(result)
         client.close();
+
+        if (req.query.filter === 'published') {
+            result = result.filter((resAsset) => resAsset?.published === true)
+            if (result?.length < 1) {
+                res.status(200).send({
+                    entries: [],
+                    message: 'No assets are published!'
+                })
+                return;
+            } 
+        }
 
         if (result) {
             res.status(200).send({
@@ -125,7 +148,7 @@ export const createAsset = async(req, res) => {
 export const updateAssetByUID = async(req, res) => {
     try {
         const {workspace_uid} = req.query
-        const assetUid = req.params.uid
+        const assetUid = req.params.assetUid
         const client = new MongoClient(process.env.MONGODB_URI);
         const db = client.db(workspace_uid);
         const collection = db.collection('assets');
@@ -133,13 +156,13 @@ export const updateAssetByUID = async(req, res) => {
                 ...req.body,
                 updatedAt: new Date().toLocaleString()
             }},
-            {upsert:false}
+            // {upsert:false}
         );
         client.close();
 
         if (result.acknowledged) {
             res.status(200).send({
-                message: 'content model updatedS!'
+                message: 'Asset details updatedS!'
             })
         }
         else throw 'error'

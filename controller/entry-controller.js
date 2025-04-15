@@ -44,7 +44,20 @@ export const getAllEntriesByModelUid = async (req, res) => {
         const client = new MongoClient(process.env.MONGODB_URI);
         const db = client.db(workspace_uid);
         const collection = db.collection(`${modelUid}`);
-        const result = await collection.find({schema_uid: modelUid}).project({_id : 0}).sort({updatedAt: -1}).toArray()
+        let result = await collection.find({schema_uid: modelUid}).project({_id : 0}).sort({updatedAt: -1}).toArray()
+
+        if (req.query.filter === 'published') {
+            result = result.filter((resEntry) => resEntry?.published === true)
+            if (result?.length < 1) {
+                res.status(200).send({
+                    entries: [],
+                    message: 'No entries are published'
+                })
+            } 
+            return
+            
+        }
+
         client.close();
 
         if (result) {
@@ -72,7 +85,18 @@ export const getEntryByUID = async (req, res) => {
         const client = new MongoClient(process.env.MONGODB_URI);
         const db = client.db(workspace_uid);
         const collection = db.collection(`${modelUid}`);
-        const result = await collection.find({entry_uid: entryUid}).project({_id : 0}).toArray()
+        let result = await collection.find({entry_uid: entryUid}).project({_id : 0}).toArray()
+
+        if (req.query.filter === 'published') {
+            result = result.filter((resEntry) => resEntry?.published === true)
+            if (result?.length < 1) {
+                res.status(200).send({
+                    entries: [],
+                    message: 'No entries are published'
+                })
+                return;
+            } 
+        }
         client.close();
 
         if (result) {

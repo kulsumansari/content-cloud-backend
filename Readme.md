@@ -1,7 +1,7 @@
 
 # 📦 Delivery API Documentation
 
-The Delivery API provides read-only access to content models, entries, and assets. Each API request must include a valid `access_token` and `ws_api_key` in the headers for authentication.
+The Delivery API provides read-only access to content models and published contents i.e. entries and assets. Each API request must include a valid `access_token` and `ws_api_key` in the headers for authentication.
 
 ---
 
@@ -69,13 +69,16 @@ Fetch a single content model using its UID.
 
 ## 📝 Entries
 
-> 🔓 These endpoints are public and **do not require** authentication headers.
 
 ### 🔹 Get All Entries by Model UID
 
 **GET** `/delivery-api/content-model/:modelUid/entries`
 
-Fetch all entries for a specific content model.
+Fetch all published entries for a specific content model.
+
+#### Headers
+- `ws_api_key`
+- `access_token`
 
 #### Parameters
 - `modelUid`: UID of the content model
@@ -97,7 +100,11 @@ Fetch all entries for a specific content model.
 
 **GET** `/delivery-api/content-model/:modelUid/entries/:entryUid`
 
-Fetch a single entry by its UID.
+Fetch a single published entry by its UID.
+
+#### Headers
+- `ws_api_key`
+- `access_token`
 
 #### Parameters
 - `modelUid`: UID of the content model  
@@ -120,7 +127,7 @@ Fetch a single entry by its UID.
 
 **GET** `/delivery-api/assets`
 
-Retrieve all available assets.
+Retrieve all published assets.
 
 #### Headers
 - `ws_api_key`
@@ -143,7 +150,7 @@ Retrieve all available assets.
 
 **GET** `/delivery-api/assets/:assetUid`
 
-Fetch a specific asset using its UID.
+Fetch a specific asset(published) using its UID.
 
 #### Parameters
 - `assetUid`: UID of the asset
@@ -176,5 +183,6 @@ Fetch a specific asset using its UID.
 ## 📌 Notes
 - Make sure `ws_api_key` maps to the correct workspace UID, which can be found in your workspace configuration.
 - `access_token` must match the one configured in the workspace's configuration.
+- delivery api only fetches published contents to let you control what can be fetched.
 
 ---

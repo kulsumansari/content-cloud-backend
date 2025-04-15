@@ -22,6 +22,7 @@ async function authenticateRequest (req, res, next) {
         if(resp?.length > 0 && resp?.[0]?.access_token) {
             if(resp?.[0]?.access_token === access_token) {
                 req.query.workspace_uid = ws_api_key
+                req.query.filter = 'published'
                 console.log('authenticated, ----next----')
                 return next()
             } else {
